@@ -8,7 +8,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-50 text-gray-800">
-  <div class="max-w-6xl mx-auto my-6 p-6 bg-white rounded-2xl shadow-md">
+  <div class="max-w-7xl mx-auto my-6 p-6 bg-white rounded-2xl shadow-md">
     <h1 class="text-xl font-semibold mb-4">
       REKAP DATA NILAI PEROLEHAN PERALATAN DAN MESIN JENJANG SD DAN SMP SEKOLAH NEGERI
     </h1>
@@ -16,9 +16,16 @@
     <!-- Rekap Kecamatan -->
     <div id="rekap" class="mb-6"></div>
 
+    <!-- Filter bar -->
     <div class="flex flex-wrap gap-2 mb-4 items-center">
       <input id="search" type="search" placeholder="Cari (kolom apa saja)..."
         class="px-3 py-2 border rounded-lg w-64 focus:outline-none focus:ring focus:ring-blue-200" />
+      
+      <!-- Dropdown Kecamatan -->
+      <select id="filterKec" class="px-3 py-2 border rounded-lg focus:outline-none focus:ring focus:ring-blue-200">
+        <option value="">-- Semua Kecamatan --</option>
+      </select>
+
       <button id="reset" class="px-3 py-2 border rounded-lg hover:bg-gray-100">Reset filter</button>
       <button id="download" class="ml-auto px-3 py-2 border rounded-lg hover:bg-gray-100">Unduh CSV</button>
     </div>
@@ -46,6 +53,7 @@
     const resetBtn = document.getElementById('reset');
     const downloadBtn = document.getElementById('download');
     const rekapDiv = document.getElementById('rekap');
+    const filterKec = document.getElementById('filterKec');
 
     function parseCSV(text) {
       const rows = [];
@@ -137,6 +145,16 @@
         totalNilai += nilai;
       });
 
+      // isi dropdown kecamatan unik
+      const kecList = Object.keys(data).sort();
+      filterKec.innerHTML = '<option value="">-- Semua Kecamatan --</option>';
+      kecList.forEach(k => {
+        const opt = document.createElement('option');
+        opt.value = k;
+        opt.textContent = k;
+        filterKec.appendChild(opt);
+      });
+
       let html = `
         <h2 class="text-lg font-medium mb-2">Rekap per Kecamatan</h2>
         <table class="min-w-max border border-gray-200 text-sm mb-4">
@@ -161,7 +179,7 @@
 
       // Baris total
       html += `
-        <tr class="font-semibold bg-gray-50">
+        <tr class="font-semibold bg-yellow-50">
           <td class="px-3 py-2 border-t">TOTAL</td>
           <td class="px-3 py-2 border-t text-center">${totalRows}</td>
           <td class="px-3 py-2 border-t text-center">${totalJumlah.toLocaleString("id-ID")}</td>
@@ -195,13 +213,15 @@
       renderTable([rawRows[0], ...data]);
     }
 
-    function filterTable(q) {
-      if (!q) { renderTable(rawRows); return; }
-      const qlow = q.toLowerCase();
-      const filtered = [rawRows[0]];
+    function filterTable(q, kec) {
+      const headers = rawRows[0];
+      const idxKec = headers.findIndex(h => h.toLowerCase() === "kecamatan");
+      const filtered = [headers];
       for (let i = 1; i < rawRows.length; i++) {
         const row = rawRows[i];
-        if (row.some(cell => (cell ?? '').toString().toLowerCase().includes(qlow))) filtered.push(row);
+        const matchSearch = q ? row.some(cell => (cell ?? '').toString().toLowerCase().includes(q)) : true;
+        const matchKec = kec ? (row[idxKec] === kec) : true;
+        if (matchSearch && matchKec) filtered.push(row);
       }
       renderTable(filtered);
     }
@@ -232,8 +252,17 @@
       }
     }
 
-    searchInput.addEventListener('input', e => filterTable(e.target.value));
-    resetBtn.addEventListener('click', () => { searchInput.value=''; filterTable(''); });
+    searchInput.addEventListener('input', e => {
+      filterTable(e.target.value.toLowerCase(), filterKec.value);
+    });
+    resetBtn.addEventListener('click', () => {
+      searchInput.value='';
+      filterKec.value='';
+      renderTable(rawRows);
+    });
+    filterKec.addEventListener('change', () => {
+      filterTable(searchInput.value.toLowerCase(), filterKec.value);
+    });
 
     loadData();
   </script>
