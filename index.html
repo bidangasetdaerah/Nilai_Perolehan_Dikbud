@@ -3,13 +3,15 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Sheet1 — Viewer</title>
-  <!-- Tambah Tailwind -->
+  <title>REKAP NILAI PEROLEHAN PERALATAN DAN MESIN SD-SMP</title>
+  <!-- Tailwind -->
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-50 text-gray-800">
   <div class="max-w-6xl mx-auto my-6 p-6 bg-white rounded-2xl shadow-md">
-    <h1 class="text-xl font-semibold mb-4">REKAP DATA NILAI PEROLEHAN PERALATAN DAN MESIN JENJANG SD DAN SMP SEKOLAH NEGERI</h1>
+    <h1 class="text-xl font-semibold mb-4">
+      REKAP DATA NILAI PEROLEHAN PERALATAN DAN MESIN JENJANG SD DAN SMP SEKOLAH NEGERI
+    </h1>
     
     <!-- Rekap Kecamatan -->
     <div id="rekap" class="mb-6"></div>
@@ -108,16 +110,25 @@
     function renderRekap(rows) {
       const headers = rows[0];
       const body = rows.slice(1);
+
       const idxKec = headers.findIndex(h => h.toLowerCase() === "kecamatan");
+      const idxJml = headers.findIndex(h => h.toLowerCase().includes("jumlah"));
+      const idxNilai = headers.findIndex(h => h.toLowerCase().includes("nilai"));
+
       if (idxKec === -1) {
         rekapDiv.innerHTML = '<p class="text-sm text-gray-500">Kolom "Kecamatan" tidak ditemukan.</p>';
         return;
       }
 
-      const counts = {};
+      const data = {};
       body.forEach(r => {
-        const key = r[idxKec] || "(Kosong)";
-        counts[key] = (counts[key] || 0) + 1;
+        const kec = r[idxKec] || "(Kosong)";
+        const jml = idxJml >= 0 ? parseInt(r[idxJml].replace(/[^0-9]/g,'')) || 0 : 0;
+        const nilai = idxNilai >= 0 ? parseFloat(r[idxNilai].replace(/[^0-9.]/g,'')) || 0 : 0;
+        if (!data[kec]) data[kec] = {rows:0, jumlah:0, nilai:0};
+        data[kec].rows++;
+        data[kec].jumlah += jml;
+        data[kec].nilai += nilai;
       });
 
       let html = `
@@ -126,15 +137,19 @@
           <thead class="bg-gray-100">
             <tr>
               <th class="px-3 py-2 border-b">Kecamatan</th>
-              <th class="px-3 py-2 border-b">Jumlah</th>
+              <th class="px-3 py-2 border-b">Jumlah Data</th>
+              <th class="px-3 py-2 border-b">Jumlah Barang</th>
+              <th class="px-3 py-2 border-b">Nilai Perolehan</th>
             </tr>
           </thead>
           <tbody>
       `;
-      Object.entries(counts).forEach(([kec, jumlah]) => {
+      Object.entries(data).forEach(([kec, val]) => {
         html += `<tr>
           <td class="px-3 py-2 border-b">${kec}</td>
-          <td class="px-3 py-2 border-b">${jumlah}</td>
+          <td class="px-3 py-2 border-b text-center">${val.rows}</td>
+          <td class="px-3 py-2 border-b text-center">${val.jumlah.toLocaleString("id-ID")}</td>
+          <td class="px-3 py-2 border-b text-right">Rp ${val.nilai.toLocaleString("id-ID")}</td>
         </tr>`;
       });
       html += `</tbody></table>`;
