@@ -125,8 +125,8 @@
 
       body.forEach(r => {
         const kec = r[idxKec] || "(Kosong)";
-        const jml = idxJml >= 0 ? parseInt(r[idxJml].replace(/[^0-9]/g,'')) || 0 : 0;
-        const nilai = idxNilai >= 0 ? parseFloat(r[idxNilai].replace(/[^0-9.]/g,'')) || 0 : 0;
+        const jml = idxJml >= 0 ? Number((r[idxJml] || '').replace(/[^\d]/g,'')) || 0 : 0;
+        const nilai = idxNilai >= 0 ? Number((r[idxNilai] || '').replace(/[^\d.]/g,'')) || 0 : 0;
         if (!data[kec]) data[kec] = {rows:0, jumlah:0, nilai:0};
         data[kec].rows++;
         data[kec].jumlah += jml;
