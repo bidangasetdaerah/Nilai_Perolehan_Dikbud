@@ -8,36 +8,42 @@
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-50 text-gray-800">
-  <div class="max-w-7xl mx-auto my-6 p-6 bg-white rounded-2xl shadow-md">
-    <h1 class="text-xl font-semibold mb-4">
+  <div class="max-w-7xl mx-auto my-6 p-4 sm:p-6 bg-white rounded-2xl shadow-md">
+    <h1 class="text-lg sm:text-xl font-semibold mb-4 text-center sm:text-left">
       REKAP DATA NILAI PEROLEHAN PERALATAN DAN MESIN JENJANG SD DAN SMP SEKOLAH NEGERI
     </h1>
     
     <!-- Rekap Kecamatan -->
-    <div id="rekap" class="mb-6"></div>
+    <div id="rekap" class="mb-6 text-sm sm:text-base"></div>
 
     <!-- Filter bar -->
-    <div class="flex flex-wrap gap-2 mb-4 items-center">
+    <div class="flex flex-col sm:flex-row sm:flex-wrap gap-2 mb-4 items-stretch sm:items-center">
       <input id="search" type="search" placeholder="Cari (kolom apa saja)..."
-        class="px-3 py-2 border rounded-lg w-64 focus:outline-none focus:ring focus:ring-blue-200" />
+        class="px-3 py-2 border rounded-lg w-full sm:w-64 focus:outline-none focus:ring focus:ring-blue-200" />
       
       <!-- Dropdown Kecamatan -->
-      <select id="filterKec" class="px-3 py-2 border rounded-lg focus:outline-none focus:ring focus:ring-blue-200">
+      <select id="filterKec" class="px-3 py-2 border rounded-lg focus:outline-none focus:ring focus:ring-blue-200 w-full sm:w-auto">
         <option value="">-- Semua Kecamatan --</option>
       </select>
 
-      <button id="reset" class="px-3 py-2 border rounded-lg hover:bg-gray-100">Reset filter</button>
-      <button id="download" class="ml-auto px-3 py-2 border rounded-lg hover:bg-gray-100">Unduh CSV</button>
+      <div class="flex gap-2 w-full sm:w-auto">
+        <button id="reset" class="flex-1 sm:flex-none px-3 py-2 border rounded-lg hover:bg-gray-100">Reset</button>
+        <button id="download" class="flex-1 sm:flex-none px-3 py-2 border rounded-lg hover:bg-gray-100">Unduh CSV</button>
+      </div>
     </div>
 
-    <div id="tableWrap" class="overflow-auto max-h-[65vh]">
-      <table id="sheetTable" class="min-w-full border border-gray-200 text-sm">
+    <!-- Wrapper tabel -->
+    <div id="tableWrap" class="overflow-auto max-h-[65vh] hidden sm:block">
+      <table id="sheetTable" class="min-w-full border border-gray-200 text-xs sm:text-sm">
         <thead id="thead" class="bg-gray-100"></thead>
         <tbody id="tbody"></tbody>
       </table>
     </div>
 
-    <p id="desc" class="text-xs text-gray-500 mt-2">
+    <!-- Versi Mobile Card -->
+    <div id="mobileTable" class="sm:hidden space-y-3"></div>
+
+    <p id="desc" class="text-xs text-gray-500 mt-4 text-center sm:text-left">
       Sumber Data dari File Excel https://donggala.e-bmd.co.id/
     </p>
   </div>
@@ -49,6 +55,7 @@
 
     const thead = document.getElementById('thead');
     const tbody = document.getElementById('tbody');
+    const mobileTable = document.getElementById('mobileTable');
     const searchInput = document.getElementById('search');
     const resetBtn = document.getElementById('reset');
     const downloadBtn = document.getElementById('download');
@@ -85,10 +92,14 @@
     function renderTable(rows) {
       thead.innerHTML = '';
       tbody.innerHTML = '';
+      mobileTable.innerHTML = '';
+
       if (!rows || rows.length === 0) {
         tbody.innerHTML = '<tr><td class="p-2 text-gray-500">(Tidak ada data)</td></tr>';
+        mobileTable.innerHTML = '<p class="text-gray-500">(Tidak ada data)</p>';
         return;
       }
+
       const headers = rows[0];
       const tr = document.createElement('tr');
       headers.forEach((h, colIndex) => {
@@ -101,6 +112,7 @@
       thead.appendChild(tr);
 
       const bodyRows = rows.slice(1);
+      // Desktop
       for (const r of bodyRows) {
         const trb = document.createElement('tr');
         for (let c = 0; c < headers.length; c++) {
@@ -110,6 +122,20 @@
           trb.appendChild(td);
         }
         tbody.appendChild(trb);
+      }
+
+      // Mobile (Card)
+      for (const r of bodyRows) {
+        const card = document.createElement('div');
+        card.className = "border rounded-lg p-3 shadow-sm";
+        headers.forEach((h, i) => {
+          const val = r[i] ?? '';
+          const rowDiv = document.createElement('div');
+          rowDiv.className = "flex justify-between text-sm border-b last:border-0 py-1";
+          rowDiv.innerHTML = `<span class="font-medium">${h}</span><span>${val}</span>`;
+          card.appendChild(rowDiv);
+        });
+        mobileTable.appendChild(card);
       }
 
       renderRekap(rows);
@@ -156,8 +182,9 @@
       });
 
       let html = `
-        <h2 class="text-lg font-medium mb-2">Rekap per Kecamatan</h2>
-        <table class="min-w-max border border-gray-200 text-sm mb-4">
+        <h2 class="text-base sm:text-lg font-medium mb-2">Rekap per Kecamatan</h2>
+        <div class="overflow-x-auto">
+        <table class="min-w-max border border-gray-200 text-xs sm:text-sm mb-4">
           <thead class="bg-gray-100">
             <tr>
               <th class="px-3 py-2 border-b">Kecamatan</th>
@@ -187,7 +214,7 @@
         </tr>
       `;
 
-      html += `</tbody></table>`;
+      html += `</tbody></table></div>`;
       rekapDiv.innerHTML = html;
     }
 
@@ -248,6 +275,7 @@
         };
       } catch (err) {
         tbody.innerHTML = `<tr><td class="p-2 text-red-500">Gagal memuat: ${err.message}</td></tr>`;
+        mobileTable.innerHTML = `<p class="text-red-500">Gagal memuat: ${err.message}</p>`;
         console.error(err);
       }
     }
