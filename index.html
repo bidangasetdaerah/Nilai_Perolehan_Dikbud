@@ -121,6 +121,8 @@
       }
 
       const data = {};
+      let totalRows = 0, totalJumlah = 0, totalNilai = 0;
+
       body.forEach(r => {
         const kec = r[idxKec] || "(Kosong)";
         const jml = idxJml >= 0 ? parseInt(r[idxJml].replace(/[^0-9]/g,'')) || 0 : 0;
@@ -129,6 +131,10 @@
         data[kec].rows++;
         data[kec].jumlah += jml;
         data[kec].nilai += nilai;
+
+        totalRows++;
+        totalJumlah += jml;
+        totalNilai += nilai;
       });
 
       let html = `
@@ -152,6 +158,17 @@
           <td class="px-3 py-2 border-b text-right">Rp ${val.nilai.toLocaleString("id-ID")}</td>
         </tr>`;
       });
+
+      // Baris total
+      html += `
+        <tr class="font-semibold bg-gray-50">
+          <td class="px-3 py-2 border-t">TOTAL</td>
+          <td class="px-3 py-2 border-t text-center">${totalRows}</td>
+          <td class="px-3 py-2 border-t text-center">${totalJumlah.toLocaleString("id-ID")}</td>
+          <td class="px-3 py-2 border-t text-right">Rp ${totalNilai.toLocaleString("id-ID")}</td>
+        </tr>
+      `;
+
       html += `</tbody></table>`;
       rekapDiv.innerHTML = html;
     }
