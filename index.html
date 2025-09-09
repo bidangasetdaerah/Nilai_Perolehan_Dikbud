@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Sheet1 — Viewer</title>
+  <!-- Tambah Tailwind -->
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 text-gray-800">
+  <div class="max-w-6xl mx-auto my-6 p-6 bg-white rounded-2xl shadow-md">
+    <h1 class="text-xl font-semibold mb-4">REKAP DATA NILAI PEROLEHAN PERALATAN DAN MESIN JENJANG SD DAN SMP SEKOLAH NEGERI</h1>
+    
+    <!-- Rekap Kecamatan -->
+    <div id="rekap" class="mb-6"></div>
+
+    <div class="flex flex-wrap gap-2 mb-4 items-center">
+      <input id="search" type="search" placeholder="Cari (kolom apa saja)..."
+        class="px-3 py-2 border rounded-lg w-64 focus:outline-none focus:ring focus:ring-blue-200" />
+      <button id="reset" class="px-3 py-2 border rounded-lg hover:bg-gray-100">Reset filter</button>
+      <button id="download" class="ml-auto px-3 py-2 border rounded-lg hover:bg-gray-100">Unduh CSV</button>
+    </div>
+
+    <div id="tableWrap" class="overflow-auto max-h-[65vh]">
+      <table id="sheetTable" class="min-w-full border border-gray-200 text-sm">
+        <thead id="thead" class="bg-gray-100"></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+
+    <p id="desc" class="text-xs text-gray-500 mt-2">
+      Sumber Data dari File Excel https://donggala.e-bmd.co.id/
+    </p>
+  </div>
+
+  <script>
+    const SPREADSHEET_ID = "1A181-886b4zZZkP46AoIaalOTwBFtuXm2do1s2ui2F4";
+    const SHEET_NAME = "Sheet1";
+    const CSV_URL = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(SHEET_NAME)}`;
+
+    const thead = document.getElementById('thead');
+    const tbody = document.getElementById('tbody');
+    const searchInput = document.getElementById('search');
+    const resetBtn = document.getElementById('reset');
+    const downloadBtn = document.getElementById('download');
+    const rekapDiv = document.getElementById('rekap');
+
+    function parseCSV(text) {
+      const rows = [];
+      let cur = '', row = [], i = 0, inQuotes = false;
+      while (i < text.length) {
+        const ch = text[i];
+        const next = text[i+1];
+        if (ch === '"' ) {
+          if (inQuotes && next === '"') { cur += '"'; i += 2; continue; }
+          inQuotes = !inQuotes; i++; continue;
+        }
+        if (!inQuotes && (ch === '\r' || ch === '\n')) {
+          if (ch === '\r' && text[i+1] === '\n') { i++; }
+          row.push(cur); rows.push(row); row = []; cur = '';
+          i++; continue;
+        }
+        if (!inQuotes && ch === ',') {
+          row.push(cur); cur = ''; i++; continue;
+        }
+        cur += ch; i++;
+      }
+      if (cur !== '' || inQuotes || row.length) row.push(cur);
+      if (row.length) rows.push(row);
+      return rows;
+    }
+
+    let rawRows = [];
+
+    function renderTable(rows) {
+      thead.innerHTML = '';
+      tbody.innerHTML = '';
+      if (!rows || rows.length === 0) {
+        tbody.innerHTML = '<tr><td class="p-2 text-gray-500">(Tidak ada data)</td></tr>';
+        return;
+      }
+      const headers = rows[0];
+      const tr = document.createElement('tr');
+      headers.forEach((h, colIndex) => {
+        const th = document.createElement('th');
+        th.textContent = h || `Kolom ${colIndex+1}`;
+        th.className = "px-3 py-2 border-b font-semibold text-left cursor-pointer hover:bg-gray-200";
+        th.addEventListener('click', () => sortByColumn(colIndex));
+        tr.appendChild(th);
+      });
+      thead.appendChild(tr);
+
+      const bodyRows = rows.slice(1);
+      for (const r of bodyRows) {
+        const trb = document.createElement('tr');
+        for (let c = 0; c < headers.length; c++) {
+          const td = document.createElement('td');
+          td.textContent = r[c] ?? '';
+          td.className = "px-3 py-2 border-b";
+          trb.appendChild(td);
+        }
+        tbody.appendChild(trb);
+      }
+
+      renderRekap(rows);
+    }
+
+    function renderRekap(rows) {
+      const headers = rows[0];
+      const body = rows.slice(1);
+      const idxKec = headers.findIndex(h => h.toLowerCase() === "kecamatan");
+      if (idxKec === -1) {
+        rekapDiv.innerHTML = '<p class="text-sm text-gray-500">Kolom "Kecamatan" tidak ditemukan.</p>';
+        return;
+      }
+
+      const counts = {};
+      body.forEach(r => {
+        const key = r[idxKec] || "(Kosong)";
+        counts[key] = (counts[key] || 0) + 1;
+      });
+
+      let html = `
+        <h2 class="text-lg font-medium mb-2">Rekap per Kecamatan</h2>
+        <table class="min-w-max border border-gray-200 text-sm mb-4">
+          <thead class="bg-gray-100">
+            <tr>
+              <th class="px-3 py-2 border-b">Kecamatan</th>
+              <th class="px-3 py-2 border-b">Jumlah</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+      Object.entries(counts).forEach(([kec, jumlah]) => {
+        html += `<tr>
+          <td class="px-3 py-2 border-b">${kec}</td>
+          <td class="px-3 py-2 border-b">${jumlah}</td>
+        </tr>`;
+      });
+      html += `</tbody></table>`;
+      rekapDiv.innerHTML = html;
+    }
+
+    let lastSort = {col:null, dir:1};
+    function sortByColumn(colIndex) {
+      const data = rawRows.slice(1);
+      const numeric = data.every(r => {
+        const v = (r[colIndex] ?? '').replace(/[,\s]/g,'');
+        return v === '' || !isNaN(Number(v));
+      });
+      const dir = (lastSort.col === colIndex) ? -lastSort.dir : 1;
+      data.sort((a,b) => {
+        const A = (a[colIndex] ?? '').trim();
+        const B = (b[colIndex] ?? '').trim();
+        if (numeric) {
+          const nA = Number(A.replace(/[^0-9.\-]/g,'')) || 0;
+          const nB = Number(B.replace(/[^0-9.\-]/g,'')) || 0;
+          return (nA - nB) * dir;
+        }
+        return A.localeCompare(B) * dir;
+      });
+      lastSort = {col:colIndex, dir};
+      renderTable([rawRows[0], ...data]);
+    }
+
+    function filterTable(q) {
+      if (!q) { renderTable(rawRows); return; }
+      const qlow = q.toLowerCase();
+      const filtered = [rawRows[0]];
+      for (let i = 1; i < rawRows.length; i++) {
+        const row = rawRows[i];
+        if (row.some(cell => (cell ?? '').toString().toLowerCase().includes(qlow))) filtered.push(row);
+      }
+      renderTable(filtered);
+    }
+
+    async function loadData() {
+      try {
+        const res = await fetch(CSV_URL);
+        if (!res.ok) throw new Error('Tidak dapat mengunduh CSV — status ' + res.status);
+        const txt = await res.text();
+        const rows = parseCSV(txt);
+        if (rows.length === 0) throw new Error('CSV kosong atau tidak dapat diparse.');
+        rawRows = rows;
+        renderTable(rawRows);
+        downloadBtn.onclick = () => {
+          const blob = new Blob([txt], {type:'text/csv;charset=utf-8;'});
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `${SHEET_NAME}.csv`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          URL.revokeObjectURL(url);
+        };
+      } catch (err) {
+        tbody.innerHTML = `<tr><td class="p-2 text-red-500">Gagal memuat: ${err.message}</td></tr>`;
+        console.error(err);
+      }
+    }
+
+    searchInput.addEventListener('input', e => filterTable(e.target.value));
+    resetBtn.addEventListener('click', () => { searchInput.value=''; filterTable(''); });
+
+    loadData();
+  </script>
+</body>
+</html>
